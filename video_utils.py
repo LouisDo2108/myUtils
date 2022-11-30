@@ -15,6 +15,16 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import torch
 
+def create_folder_template(sub_video_path):
+    sub_video_path.mkdir(exist_ok=True)
+    sub_video_images_path = sub_video_path / 'images'
+    sub_video_images_path.mkdir(exist_ok=True)
+    sub_video_labels_path = sub_video_path / 'labels'
+    sub_video_labels_path.mkdir(exist_ok=True)
+    sub_video_labels_ftid_path = sub_video_path / 'labels_ftid'
+    sub_video_labels_ftid_path.mkdir(exist_ok=True)
+    return sub_video_images_path
+
 class Annotator:
     # YOLOv5 Annotator for train/val mosaics and jpgs and detect/hub inference annotations
     def __init__(self, im, line_width=None, font_size=None, font='Arial.ttf', pil=False, example='abc'):
