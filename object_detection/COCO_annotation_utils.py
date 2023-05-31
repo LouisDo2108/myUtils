@@ -1,8 +1,10 @@
 import os
-from natsort import natsorted
-import numpy as np
 import json
-from bbox_utils import Bbox
+from pathlib import Path
+import cv2
+import numpy as np
+from natsort import natsorted
+from bbox import Bbox
 
 
 def create_annotations(DATA_PATH, OUT_PATH, SPLITS=['Train', 'Val']):
@@ -98,9 +100,9 @@ def create_annotations(DATA_PATH, OUT_PATH, SPLITS=['Train', 'Val']):
                         ###
                         category_id = int(anns[j][1])
                         bbox = np.array(anns[j][2:], dtype='float64')#.tolist()
-                        bbox_ = Bbox(height, width, bbox)
+                        bbox_ = Bbox(height, width, bbox, format='ccwh')
                         bbox = bbox_.ccwh2xyxy()
-                        bbox_ = Bbox(height, width, bbox)
+                        bbox_ = Bbox(height, width, bbox, format='xyxy')
                         bbox = bbox_.xyxy2xywh()
                         
                         ### Convert yolo bbox to coco format ###
