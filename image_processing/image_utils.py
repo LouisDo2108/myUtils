@@ -1,5 +1,6 @@
 import cv2
 
+
 def scale_image(im1_shape, masks, im0_shape, ratio_pad=None):
     """
     img1_shape: model input shape, [h, w]

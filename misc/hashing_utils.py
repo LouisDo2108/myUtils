@@ -1,5 +1,6 @@
 from zlib import crc32
 
+
 def bytes_to_int(b):
     return int(crc32(b) & 0xffffffff) #/ 2**32
 

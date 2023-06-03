@@ -4,7 +4,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 from natsort import natsorted
-from bbox import Bbox
+from .bbox_utils import Bbox
 
 
 def create_annotations(DATA_PATH, OUT_PATH, SPLITS=['Train', 'Val']):

@@ -29,77 +29,96 @@ def create_folder_template(sub_video_path):
     sub_video_labels_ftid_path.mkdir(exist_ok=True)
     return sub_video_images_path
 
+   
+def overlay_bbox_on_videos(images_path, labels_path, video_name, img_size=(480, 640), fps=49, class_names=None):
+    """
+    Overlay some bounding box on the video
+    Args:
+        images_path (_type_): path to video frames folder
+        labels_path (_type_): path to labels folder
+        video_name (_type_): output video name
+        img_size (tuple, optional): the resolution of the video frame. Defaults to (480, 640).
+        fps (int, optional): self descriptive. Defaults to 49.
+        class_names (_type_, optional): class names in all the labels file. Defaults to None.
+    """
 
-def overlay_bbox_on_videos(video_images_path, gt_dest_path, img_size=(480, 640), fps=49, folder='Train'):
-
-    ids = [x for x in os.listdir('{}/{}'.format(video_images_path, folder))]
     h, w = img_size
 
-    for id in tqdm(ids):
-        images_path = Path(
-            '{}/{}/{}/images'.format(video_images_path, folder, id))
-        labels_path = Path(
-            '{}/{}/{}/labels_ftid'.format(video_images_path, folder, id))
-        classes = ['sperm', 'cluster', 'small']
-        images = natsorted([x for x in images_path.iterdir()], key=str)
+    images = natsorted([x for x in Path(images_path).iterdir()], key=str)
 
-        video_name = '{}/{}_gt_videos/{}gt.mp4'.format(
-            folder, id)
-        print(video_name)
-        frame = cv2.imread(str(images[0]))
-        height, width, layers = frame.shape
+    frame = cv2.imread(str(images[0]))
+    height, width, layers = frame.shape
 
-        video = cv2.VideoWriter(video_name, cv2.VideoWriter_fourcc(
-            *'mp4v'), fps, (width, height))
+    video = cv2.VideoWriter(video_name, cv2.VideoWriter_fourcc(
+        *'mp4v'), fps, (width, height))
 
-        for image in tqdm(images):
-            img = cv2.imread(str(image))
-            annotator = Annotator(img, line_width=2, example=str('yolov5m'))
-            name = image.stem
-            labels = labels_path / image.stem
-            labels = str(labels) + '_with_ftid.txt'
-            if os.path.exists(labels) == True:
-                anns = np.genfromtxt(labels, dtype='str')
-                anns = np.atleast_2d(anns)
-                track_id = np.array(
-                    list(map(str_to_int, list(anns[:, 0]))), dtype='uint32')
-                anns[:, 0] = track_id
-                anns[:, 2:] = ccwh2xyxy(480, 640, anns[:, 2:].astype(
-                    'float32')).round().astype('int32')
-                for ann in anns:
-                    cls = "{}{}{}".format(str(ann[0])[:2], str(
-                        ann[0])[-2:], classes[int(ann[1])])
-                    annotator.box_label(
-                        ann[2:], cls, color=colors(int(ann[1]), True))
-            video.write(annotator.result())
+    if class_names is None:
+        class_names = [1, 2, 3]
 
-        cv2.destroyAllWindows()
-        video.release()
-        print("Saved to", video_name)
+    for image in tqdm(images):
+        img = cv2.imread(str(image))
+        annotator = Annotator(img, line_width=2, example=str('yolov5m'))
+        name = image.stem
+        labels = Path(labels_path) / image.stem
+
+        if labels.exists():
+            anns = np.genfromtxt(labels, dtype='str')
+            anns = np.atleast_2d(anns)
+            track_id = np.array(
+                list(map(str_to_int, list(anns[:, 0]))), dtype='uint32')
+            anns[:, 0] = track_id
+            anns[:, 2:] = ccwh2xyxy(480, 640, anns[:, 2:].astype(
+                'float32')).round().astype('int32')
+
+            for ann in anns:
+                cls = "{}{}{}".format(str(ann[0])[:2], str(
+                    ann[0])[-2:], class_names[int(ann[1])])
+                annotator.box_label(
+                    ann[2:], cls, color=colors(int(ann[1]), True))
+
+        video.write(annotator.result())
+
+    cv2.destroyAllWindows()
+    video.release()
+    print("Saved to", video_name)
 
         
-def merge_videos(videos:List, save_path):
-    
+def merge_videos(videos: List[str], save_path: str):
+    """
+    Merge multiple videos into a single video file.
+
+    Args:
+        videos (List[str]): List of video file paths to merge. The videos will be merged in the order specified.
+        save_path (str): File path to save the merged video.
+
+    Returns:
+        None
+    """
     print("Merging videos")
-    # Create a new video
+
+    # Sort the list of videos using natural sorting
+    videos = natsorted(videos)
+
+    # Read the first video to get video properties
     vid_cap = cv2.VideoCapture(videos[0])
     fps = vid_cap.get(cv2.CAP_PROP_FPS)
-    w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    width = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     
-    print(fps, w, h)
-    video = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
-    # Write all the frames sequentially to the new video
-    for v in videos:
-        curr_v = cv2.VideoCapture(v)
-        while curr_v.isOpened():
-            r, frame = curr_v.read()    # Get return value and curr frame of curr video
-            if not r:
-                break
-            video.write(frame)          # Write the frame
+    # Initialize the output video writer
+    video = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
-    video.release() 
-    print("Saved to ", save_path)
+    # Write all the frames sequentially to the new video
+    for video_path in videos:
+        vid_cap = cv2.VideoCapture(video_path)
+        while True:
+            ret, frame = vid_cap.read()
+            if not ret:
+                break
+            video.write(frame)
+
+    video.release()
+    print("Saved to", save_path)
 
     
 def get_video_splits(id, video_images_path,
@@ -119,7 +138,6 @@ def get_video_splits(id, video_images_path,
     psnr_diff = 0
     lim = 99999
     last_frame = 0
-    # model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_path)
     result = []
 
     for idx, _ in enumerate(tqdm(imgs)):
